@@ -26,6 +26,8 @@ import socketserver
 import concurrent.futures
 import struct
 import logging
+import os
+import yaml
 try:
     from dnslib import *
 except ImportError:
@@ -36,12 +38,193 @@ class DomainName(str):
     def __getattr__(self, item):
         return DomainName(item + '.' + self)
 
+
+class Config:
+    """Configuration management class that handles loading from multiple sources:
+    Priority order: CLI args > Environment variables > Config file > Defaults
+    """
+
+    def __init__(self, config_file='config.yaml'):
+        self.config_file = config_file
+        self.config = {}
+
+        # Default configuration values
+        self.defaults = {
+            'server': {
+                'port': 5353,
+                'bind_address': '::',
+                'enable_tcp': False,
+                'enable_udp': True,
+                'verbose': 0
+            },
+            'dns': {
+                'ttl': 86400,
+                'domain_suffix': 'ip6.example.com.',
+                'max_workers': 32
+            },
+            'ipv6': {
+                'subnets': ['2001:db8:1::/48', '2001:db8:2::/64']
+            },
+            'ptr_records': {
+                'config_file': 'ipv6autoptr.conf',
+                'use_custom': True
+            },
+            'logging': {
+                'level': 'INFO',
+                'format': '%(asctime)s - %(levelname)s - %(message)s',
+                'file': None
+            }
+        }
+
+        self._load_config()
+
+    def _load_config(self):
+        """Load configuration from file, then apply environment overrides"""
+        # Start with defaults
+        self.config = self._deep_copy(self.defaults)
+
+        # Load from YAML file if it exists
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r') as f:
+                    file_config = yaml.safe_load(f) or {}
+                self._merge_config(self.config, file_config)
+            except Exception as e:
+                print(f"Warning: Failed to load config file {self.config_file}: {e}")
+
+        # Apply environment variable overrides
+        self._apply_env_overrides()
+
+    def _deep_copy(self, d):
+        """Simple deep copy for nested dictionaries"""
+        if isinstance(d, dict):
+            return {k: self._deep_copy(v) for k, v in d.items()}
+        elif isinstance(d, list):
+            return [self._deep_copy(v) for v in d]
+        else:
+            return d
+
+    def _merge_config(self, base, override):
+        """Recursively merge configuration dictionaries"""
+        for key, value in override.items():
+            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+                self._merge_config(base[key], value)
+            else:
+                base[key] = value
+
+    def _apply_env_overrides(self):
+        """Apply environment variable overrides with IPV6AUTOPTR_ prefix"""
+        env_mappings = {
+            'IPV6AUTOPTR_PORT': ('server', 'port', int),
+            'IPV6AUTOPTR_BIND_ADDRESS': ('server', 'bind_address', str),
+            'IPV6AUTOPTR_ENABLE_TCP': ('server', 'enable_tcp', self._str_to_bool),
+            'IPV6AUTOPTR_ENABLE_UDP': ('server', 'enable_udp', self._str_to_bool),
+            'IPV6AUTOPTR_VERBOSE': ('server', 'verbose', int),
+            'IPV6AUTOPTR_TTL': ('dns', 'ttl', int),
+            'IPV6AUTOPTR_DOMAIN_SUFFIX': ('dns', 'domain_suffix', str),
+            'IPV6AUTOPTR_MAX_WORKERS': ('dns', 'max_workers', int),
+            'IPV6AUTOPTR_SUBNETS': ('ipv6', 'subnets', self._parse_comma_list),
+            'IPV6AUTOPTR_PTR_CONFIG_FILE': ('ptr_records', 'config_file', str),
+            'IPV6AUTOPTR_USE_CUSTOM_PTR': ('ptr_records', 'use_custom', self._str_to_bool),
+            'IPV6AUTOPTR_LOG_LEVEL': ('logging', 'level', str),
+            'IPV6AUTOPTR_LOG_FORMAT': ('logging', 'format', str),
+            'IPV6AUTOPTR_LOG_FILE': ('logging', 'file', str)
+        }
+
+        for env_var, (section, key, converter) in env_mappings.items():
+            value = os.environ.get(env_var)
+            if value is not None:
+                try:
+                    self.config[section][key] = converter(value)
+                except (ValueError, TypeError) as e:
+                    print(f"Warning: Invalid value for {env_var}: {value} ({e})")
+
+    def _str_to_bool(self, value):
+        """Convert string to boolean"""
+        if isinstance(value, bool):
+            return value
+        return str(value).lower() in ('true', 'yes', '1', 'on', 'enable')
+
+    def _parse_comma_list(self, value):
+        """Parse comma-separated list"""
+        if isinstance(value, list):
+            return value
+        return [item.strip() for item in str(value).split(',') if item.strip()]
+
+    def get(self, *path):
+        """Get configuration value using dot notation (e.g., get('server', 'port'))"""
+        current = self.config
+        for key in path:
+            if isinstance(current, dict) and key in current:
+                current = current[key]
+            else:
+                return None
+        return current
+
+    def set_from_args(self, args):
+        """Update configuration with command line arguments (highest priority)"""
+        if hasattr(args, 'port') and args.port is not None:
+            self.config['server']['port'] = args.port
+        if hasattr(args, 'tcp') and args.tcp:
+            self.config['server']['enable_tcp'] = True
+        if hasattr(args, 'udp') and args.udp:
+            self.config['server']['enable_udp'] = True
+        if hasattr(args, 'verbose') and args.verbose is not None:
+            self.config['server']['verbose'] = args.verbose
+        if hasattr(args, 'config') and args.config:
+            # If a different config file is specified via CLI, reload everything
+            self.config_file = args.config
+            self._load_config()
+
+    @property
+    def port(self):
+        return self.get('server', 'port')
+
+    @property
+    def bind_address(self):
+        return self.get('server', 'bind_address')
+
+    @property
+    def enable_tcp(self):
+        return self.get('server', 'enable_tcp')
+
+    @property
+    def enable_udp(self):
+        return self.get('server', 'enable_udp')
+
+    @property
+    def verbose(self):
+        return self.get('server', 'verbose')
+
+    @property
+    def ttl(self):
+        return self.get('dns', 'ttl')
+
+    @property
+    def domain_suffix(self):
+        return self.get('dns', 'domain_suffix')
+
+    @property
+    def max_workers(self):
+        return self.get('dns', 'max_workers')
+
+    @property
+    def subnets(self):
+        return self.get('ipv6', 'subnets')
+
+    @property
+    def ptr_config_file(self):
+        return self.get('ptr_records', 'config_file')
+
+    @property
+    def use_custom_ptr(self):
+        return self.get('ptr_records', 'use_custom')
+
+
 IPV6AUTOPTR_VERSION = "0.1"
 
-# Set up subnets for auto ipv6 ptr - TEST CONFIGURATION
-subnets = ['2001:db8:1::/48', '2001:db8:2::/64']
-
-D = DomainName('ip6.testdomain.local.')
+# Global configuration object - will be initialized in main()
+config = None
 #IP = '122.123.124.125'
 #IP6 = '2a0a:XXXX:0:a000::125'
 
@@ -78,7 +261,7 @@ def dns_response_ipv6ptr(data):
 
     ptrdomain_name = str(request.q.qname).rstrip('.ip6.arpa.')[::-1]
     ptrdomain_name = ptrdomain_name.replace('.', '')
-    ipv6_domain = D
+    ipv6_domain = DomainName(config.domain_suffix)
 
     #if req type = PTR
     if '.ip6.arpa' in qn:
@@ -103,13 +286,13 @@ def dns_response_ipv6ptr(data):
 
             # Search the subnets for a match
             match = False
-            for subnet_str in subnets:
+            for subnet_str in config.subnets:
                 subnet = ipaddress.IPv6Network(subnet_str)
                 if ipv6_addr in subnet:
                     match = True
                          
                     # read config file to retrieve parameter-value pairs for PTR answer
-                    with open('ipv6autoptr.conf') as f:
+                    with open(config.ptr_config_file) as f:
                         lines = f.readlines()
                         # parse parameters from config file
                         config_params = {}
@@ -132,7 +315,7 @@ def dns_response_ipv6ptr(data):
                     
                     logging.info(f"IPV6: {ipv6_addr} found in subnet {subnet} and resolv answer as: {ptr_answerd}")
                     logging.info("SERVER ANSWER: " + ptr_answerd)
-                    reply.add_answer(RR(rname=qname, rtype=QTYPE.PTR, rdata=PTR(ptr_answerd), ttl=86400))
+                    reply.add_answer(RR(rname=qname, rtype=QTYPE.PTR, rdata=PTR(ptr_answerd), ttl=config.ttl))
                     break
 
             else:
@@ -148,7 +331,7 @@ def dns_response_ipv6ptr(data):
 
 class BaseRequestHandler(socketserver.BaseRequestHandler):
 
-    executor = concurrent.futures.ThreadPoolExecutor(max_workers=32)
+    executor = None  # Will be initialized when config is available
 
     def get_data(self):
         raise NotImplementedError
@@ -209,31 +392,58 @@ class UDPRequestHandler(BaseRequestHandler):
             logging.exception(f"Error while sending data: {e}")
 
 def main():
+    global config
+
     parser = argparse.ArgumentParser(description='Start a IPV6AUTOPTR implemented in Python.')
-    parser.add_argument('--port', default=5353, type=int, help='The port to listen on.')
+    parser.add_argument('--port', default=None, type=int, help='The port to listen on.')
     parser.add_argument('--tcp', action='store_true', help='Listen to TCP connections.')
     parser.add_argument('--udp', action='store_true', help='Listen to UDP datagrams.')
-    parser.add_argument("--verbose", action = "count", default=0, help="Increase verbosity")
+    parser.add_argument("--verbose", action = "count", default=None, help="Increase verbosity")
+    parser.add_argument('--config', default='config.yaml', help='Configuration file path.')
     args = parser.parse_args()
-    if not (args.udp or args.tcp): parser.error("Please select at least one of --udp or --tcp.")
+
+    # Initialize configuration system
+    config = Config(args.config)
+    config.set_from_args(args)
+
+    # If no protocol specified via CLI, use config defaults
+    if not (args.udp or args.tcp):
+        if not (config.enable_udp or config.enable_tcp):
+            parser.error("Please select at least one of --udp or --tcp, or enable them in config.")
 
     print("Starting ...")
 
     servers = []
-    if args.udp: servers.append(socketserver.ThreadingUDPServer(('::0', args.port), UDPRequestHandler))
-    if args.tcp: servers.append(socketserver.ThreadingTCPServer(('::0', args.port), TCPRequestHandler))
+    # Use CLI args if specified, otherwise use config defaults
+    enable_udp = args.udp or config.enable_udp
+    enable_tcp = args.tcp or config.enable_tcp
 
-    if args.verbose == 1:
+    if enable_udp:
+        servers.append(socketserver.ThreadingUDPServer((config.bind_address, config.port), UDPRequestHandler))
+    if enable_tcp:
+        servers.append(socketserver.ThreadingTCPServer((config.bind_address, config.port), TCPRequestHandler))
+
+    # Set up logging based on verbose level
+    verbose_level = config.verbose
+    if verbose_level == 1:
         level = logging.INFO
-    elif args.verbose >= 2:
+    elif verbose_level >= 2:
         level = logging.DEBUG
     else:
         level = logging.WARN
 
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        level=level,
-    )
+    # Configure logging from config
+    log_config = {
+        'format': config.get('logging', 'format'),
+        'level': level,
+    }
+    if config.get('logging', 'file'):
+        log_config['filename'] = config.get('logging', 'file')
+
+    logging.basicConfig(**log_config)
+
+    # Initialize the thread pool executor with configured max workers
+    BaseRequestHandler.executor = concurrent.futures.ThreadPoolExecutor(max_workers=config.max_workers)
 
     for s in servers:
         thread = threading.Thread(target=s.serve_forever)  # that thread will start one more thread for each request

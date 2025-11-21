@@ -1,0 +1,83 @@
+# IPv6 Auto PTR DNS Server - Docker Compose Configuration
+version: '3.8'
+
+services:
+  # Basic IPv6 PTR DNS Server
+  ipv6autoptr:
+    build: .
+    container_name: ipv6autoptr
+    restart: unless-stopped
+    ports:
+      - "5353:53/udp"  # Map container port 53 to host port 5353
+      - "5353:53/tcp"
+    environment:
+      - IPV6AUTOPTR_PORT=53
+      - IPV6AUTOPTR_BIND_ADDRESS=::
+      - IPV6AUTOPTR_ENABLE_UDP=true
+      - IPV6AUTOPTR_ENABLE_TCP=true
+      - IPV6AUTOPTR_VERBOSE=2
+      - IPV6AUTOPTR_TTL=3600
+      - IPV6AUTOPTR_DOMAIN_SUFFIX=ip6.example.com.
+      - IPV6AUTOPTR_SUBNETS=2001:db8:1::/48,2001:db8:2::/64
+      - IPV6AUTOPTR_MAX_WORKERS=16
+      - IPV6AUTOPTR_LOG_LEVEL=INFO
+    volumes:
+      # Mount custom PTR records config
+      - ./ipv6autoptr.conf:/app/ipv6autoptr.conf:ro
+      # Optional: Mount custom main config
+      - ./config.yaml:/app/config.yaml:ro
+    networks:
+      - ipv6autoptr_net
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # Required for binding to port 53
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+
+  # Production example with privileged port 53
+  ipv6autoptr-prod:
+    build: .
+    container_name: ipv6autoptr-prod
+    restart: unless-stopped
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+    environment:
+      - IPV6AUTOPTR_PORT=53
+      - IPV6AUTOPTR_BIND_ADDRESS=::
+      - IPV6AUTOPTR_ENABLE_UDP=true
+      - IPV6AUTOPTR_ENABLE_TCP=true
+      - IPV6AUTOPTR_VERBOSE=1
+      - IPV6AUTOPTR_TTL=86400
+      - IPV6AUTOPTR_DOMAIN_SUFFIX=ip6.yourdomain.com.
+      - IPV6AUTOPTR_SUBNETS=2001:db8::/32
+      - IPV6AUTOPTR_MAX_WORKERS=32
+      - IPV6AUTOPTR_LOG_LEVEL=WARNING
+    volumes:
+      - ./production.conf:/app/ipv6autoptr.conf:ro
+      - ./logs:/app/logs
+    networks:
+      - ipv6autoptr_net
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    profiles:
+      - production
+
+networks:
+  ipv6autoptr_net:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:db8:1::/64

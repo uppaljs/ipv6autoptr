@@ -1,0 +1,73 @@
+# IPv6 Auto PTR Server Configuration
+# This file contains all configurable options for the IPv6 PTR DNS server.
+# Environment variables with prefix IPV6AUTOPTR_ can override these settings.
+# Command line arguments take highest precedence.
+
+# Server Configuration
+server:
+  # Port to listen on (default: 5353)
+  # Environment variable: IPV6AUTOPTR_PORT
+  port: 5353
+
+  # Address to bind to (default: '::0' for IPv6, '0.0.0.0' for IPv4)
+  # Environment variable: IPV6AUTOPTR_BIND_ADDRESS
+  bind_address: "::"
+
+  # Enable TCP server (default: false)
+  # Environment variable: IPV6AUTOPTR_ENABLE_TCP
+  enable_tcp: false
+
+  # Enable UDP server (default: true)
+  # Environment variable: IPV6AUTOPTR_ENABLE_UDP
+  enable_udp: true
+
+  # Verbosity level (0-3, default: 0)
+  # Environment variable: IPV6AUTOPTR_VERBOSE
+  verbose: 0
+
+# DNS Configuration
+dns:
+  # TTL for DNS responses in seconds (default: 86400 = 24 hours)
+  # Environment variable: IPV6AUTOPTR_TTL
+  ttl: 86400
+
+  # Domain suffix for auto-generated PTR records
+  # Environment variable: IPV6AUTOPTR_DOMAIN_SUFFIX
+  domain_suffix: "ip6.example.com."
+
+  # Maximum number of worker threads for processing requests
+  # Environment variable: IPV6AUTOPTR_MAX_WORKERS
+  max_workers: 32
+
+# IPv6 Configuration
+ipv6:
+  # List of IPv6 subnets to handle PTR queries for
+  # Only addresses within these subnets will get auto-generated PTR records
+  # Environment variable: IPV6AUTOPTR_SUBNETS (comma-separated)
+  subnets:
+    - "2001:db8:1::/48"
+    - "2001:db8:2::/64"
+
+# PTR Records Configuration
+ptr_records:
+  # Path to the custom PTR records configuration file
+  # Environment variable: IPV6AUTOPTR_PTR_CONFIG_FILE
+  config_file: "ipv6autoptr.conf"
+
+  # Whether to use custom PTR records from config file (default: true)
+  # Environment variable: IPV6AUTOPTR_USE_CUSTOM_PTR
+  use_custom: true
+
+# Logging Configuration
+logging:
+  # Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  # Environment variable: IPV6AUTOPTR_LOG_LEVEL
+  level: "INFO"
+
+  # Log format
+  # Environment variable: IPV6AUTOPTR_LOG_FORMAT
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+
+  # Log file path (optional, logs to console if not specified)
+  # Environment variable: IPV6AUTOPTR_LOG_FILE
+  file: null
