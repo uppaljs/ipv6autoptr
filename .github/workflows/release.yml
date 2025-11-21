@@ -87,7 +87,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        images: ${{ env.REGISTRY }}/uppal/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -118,7 +118,7 @@ jobs:
       run: |
         echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Image**: \`${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Image**: \`uppal/ipv6autoptr\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Tags built**:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
@@ -129,7 +129,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Pull command**:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull uppal/ipv6autoptr:latest" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   create-release:
@@ -170,10 +170,10 @@ jobs:
           echo "### Pull Commands" >> changelog.md
           echo "\`\`\`bash" >> changelog.md
           echo "# Latest release" >> changelog.md
-          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "docker pull uppal/ipv6autoptr:$CURRENT_TAG" >> changelog.md
           echo "" >> changelog.md
           echo "# Latest stable" >> changelog.md
-          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:latest" >> changelog.md
+          echo "docker pull uppal/ipv6autoptr:latest" >> changelog.md
           echo "\`\`\`" >> changelog.md
           echo "" >> changelog.md
           echo "### Supported Platforms" >> changelog.md
@@ -187,7 +187,7 @@ jobs:
           echo "  -p 53:53/udp \\\\" >> changelog.md
           echo "  -e IPV6AUTOPTR_DOMAIN_SUFFIX=\"ip6.yourdomain.com.\" \\\\" >> changelog.md
           echo "  -e IPV6AUTOPTR_SUBNETS=\"2001:db8:1000::/48\" \\\\" >> changelog.md
-          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "  uppal/ipv6autoptr:$CURRENT_TAG" >> changelog.md
           echo "\`\`\`" >> changelog.md
           echo "" >> changelog.md
           echo "See the [README](https://github.com/uppaljs/ipv6autoptr/blob/main/README.md) for complete documentation." >> changelog.md
@@ -208,7 +208,7 @@ jobs:
           echo "## 🐳 Docker Images" >> changelog.md
           echo "" >> changelog.md
           echo "\`\`\`bash" >> changelog.md
-          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "docker pull uppal/ipv6autoptr:$CURRENT_TAG" >> changelog.md
           echo "\`\`\`" >> changelog.md
         fi
 
@@ -234,7 +234,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version**: ${{ steps.changelog.outputs.current_tag }}" >> $GITHUB_STEP_SUMMARY
         echo "**Release URL**: https://github.com/uppaljs/ipv6autoptr/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-        echo "**Docker Image**: \`${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:${{ steps.changelog.outputs.current_tag }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Docker Image**: \`uppal/ipv6autoptr:${{ steps.changelog.outputs.current_tag }}\`" >> $GITHUB_STEP_SUMMARY
 
   security-scan:
     name: Security Scan
@@ -246,7 +246,7 @@ jobs:
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
-        image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:latest'
+        image-ref: 'uppal/ipv6autoptr:latest'
         format: 'sarif'
         output: 'trivy-results.sarif'
 

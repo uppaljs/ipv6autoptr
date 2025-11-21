@@ -120,13 +120,13 @@ The release workflow creates multiple tags for flexibility:
 
 ```bash
 # Production - pin to specific version
-docker pull uppaljs/ipv6autoptr:v1.2.3
+docker pull uppal/ipv6autoptr:v1.2.3
 
 # Development - latest stable
-docker pull uppaljs/ipv6autoptr:latest
+docker pull uppal/ipv6autoptr:latest
 
 # Auto-updates with minor versions
-docker pull uppaljs/ipv6autoptr:1.2
+docker pull uppal/ipv6autoptr:1.2
 ```
 
 ## 🔒 Security Features

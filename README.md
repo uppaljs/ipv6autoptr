@@ -58,7 +58,7 @@ docker run -d \
   -p 53:53/udp \
   -e IPV6AUTOPTR_DOMAIN_SUFFIX="ip6.yourdomain.com." \
   -e IPV6AUTOPTR_SUBNETS="2001:db8:1000::/48,2001:db8:2000::/64" \
-  ghcr.io/uppaljs/ipv6autoptr:latest
+  uppal/ipv6autoptr:latest
 
 # Or use docker-compose for full setup
 docker-compose up -d
@@ -137,7 +137,7 @@ docker run -d \
   -e IPV6AUTOPTR_DOMAIN_SUFFIX="ip6.example.com." \
   -e IPV6AUTOPTR_SUBNETS="2001:db8:1000::/48" \
   -e IPV6AUTOPTR_VERBOSE=1 \
-  ghcr.io/uppaljs/ipv6autoptr:latest
+  uppal/ipv6autoptr:latest
 ```
 
 ### Production Docker Compose
@@ -496,17 +496,17 @@ This project features a complete automated CI/CD pipeline with GitHub Actions:
 
 ### 🐳 **Docker Hub Integration**
 
-**Official Images**: [`uppaljs/ipv6autoptr`](https://hub.docker.com/r/uppaljs/ipv6autoptr)
+**Official Images**: [`uppal/ipv6autoptr`](https://hub.docker.com/r/uppal/ipv6autoptr)
 
 ```bash
 # Latest stable release
-docker pull uppaljs/ipv6autoptr:latest
+docker pull uppal/ipv6autoptr:latest
 
 # Specific version
-docker pull uppaljs/ipv6autoptr:v1.0.0
+docker pull uppal/ipv6autoptr:v1.0.0
 
 # Development builds
-docker pull uppaljs/ipv6autoptr:main
+docker pull uppal/ipv6autoptr:main
 ```
 
 **Supported Platforms**:
