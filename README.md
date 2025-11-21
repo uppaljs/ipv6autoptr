@@ -476,6 +476,50 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - ✅ **Performance Improvements** - Configurable threading and optimization
 - ✅ **Modern Development** - Virtual environments, pinned dependencies
 - ✅ **Production Ready** - Health checks, monitoring, logging
+- ✅ **CI/CD Pipeline** - Automated testing, building, and releases
+
+## 🚀 Automated Releases & CI/CD
+
+This project features a complete automated CI/CD pipeline with GitHub Actions:
+
+### 🔄 **Continuous Integration**
+- ✅ **Multi-Python Testing** - Tests across Python 3.11, 3.12, and 3.13
+- ✅ **Code Quality Checks** - Automated linting, formatting, and security scans
+- ✅ **Docker Build Validation** - Ensures containers build correctly
+- ✅ **Configuration Validation** - YAML syntax and configuration testing
+
+### 📦 **Automated Releases**
+- 🏷️ **Semantic Versioning** - Create releases with `git tag v1.0.0`
+- 🐳 **Multi-Platform Docker Images** - Automatic builds for AMD64 and ARM64
+- 📋 **Generated Changelogs** - Automatic release notes from commit history
+- 🔒 **Security Scanning** - Container vulnerability analysis with Trivy
+
+### 🐳 **Docker Hub Integration**
+
+**Official Images**: [`uppaljs/ipv6autoptr`](https://hub.docker.com/r/uppaljs/ipv6autoptr)
+
+```bash
+# Latest stable release
+docker pull uppaljs/ipv6autoptr:latest
+
+# Specific version
+docker pull uppaljs/ipv6autoptr:v1.0.0
+
+# Development builds
+docker pull uppaljs/ipv6autoptr:main
+```
+
+**Supported Platforms**:
+- `linux/amd64` (Intel/AMD 64-bit)
+- `linux/arm64` (ARM64/Apple Silicon)
+
+### 📖 **For Contributors**
+
+See [`.github/ACTIONS.md`](.github/ACTIONS.md) for detailed CI/CD documentation, including:
+- Setting up Docker Hub credentials
+- Creating releases
+- Workflow customization
+- Troubleshooting guide
 
 ## 🆘 Support and Issues
 

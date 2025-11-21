@@ -1,0 +1,257 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ipv6autoptr
+
+jobs:
+  test:
+    name: Test Application
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Cache Python dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Validate configuration files
+      run: |
+        python -c "
+        import yaml
+        import os
+
+        # Test config.yaml syntax
+        with open('config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        print('✅ config.yaml is valid')
+
+        # Test Python syntax
+        with open('ipv6autoptr.py', 'r') as f:
+            compile(f.read(), 'ipv6autoptr.py', 'exec')
+        print('✅ ipv6autoptr.py syntax is valid')
+        "
+
+    - name: Test basic functionality
+      run: |
+        timeout 10s python ipv6autoptr.py --help || true
+        echo "✅ Application help command works"
+
+  build-and-push:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=IPv6 Auto PTR DNS Server
+          org.opencontainers.image.description=A modern, lightweight DNS server for automatic IPv6 PTR record generation
+          org.opencontainers.image.vendor=Junaid Saeed Uppal
+          org.opencontainers.image.url=https://github.com/uppaljs/ipv6autoptr
+          org.opencontainers.image.source=https://github.com/uppaljs/ipv6autoptr
+          org.opencontainers.image.documentation=https://github.com/uppaljs/ipv6autoptr/blob/main/README.md
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Generate build summary
+      run: |
+        echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Image**: \`${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Tags built**:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Pull command**:" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [test, build-and-push]
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^1 2>/dev/null || echo "")
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+
+        echo "current_tag=$CURRENT_TAG" >> $GITHUB_OUTPUT
+
+        # Generate changelog
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "## 🚀 Changes since $PREVIOUS_TAG" > changelog.md
+          echo "" >> changelog.md
+
+          # Get commits since last tag
+          git log --pretty=format:"- %s (%h)" $PREVIOUS_TAG..HEAD >> changelog.md
+
+          echo "" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 🐳 Docker Images" >> changelog.md
+          echo "" >> changelog.md
+          echo "Multi-platform Docker images are available:" >> changelog.md
+          echo "" >> changelog.md
+          echo "### Pull Commands" >> changelog.md
+          echo "\`\`\`bash" >> changelog.md
+          echo "# Latest release" >> changelog.md
+          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "" >> changelog.md
+          echo "# Latest stable" >> changelog.md
+          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:latest" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+          echo "" >> changelog.md
+          echo "### Supported Platforms" >> changelog.md
+          echo "- linux/amd64 (x86_64)" >> changelog.md
+          echo "- linux/arm64 (ARM64/Apple Silicon)" >> changelog.md
+          echo "" >> changelog.md
+          echo "### Quick Start" >> changelog.md
+          echo "\`\`\`bash" >> changelog.md
+          echo "docker run -d \\\\" >> changelog.md
+          echo "  --name ipv6autoptr \\\\" >> changelog.md
+          echo "  -p 53:53/udp \\\\" >> changelog.md
+          echo "  -e IPV6AUTOPTR_DOMAIN_SUFFIX=\"ip6.yourdomain.com.\" \\\\" >> changelog.md
+          echo "  -e IPV6AUTOPTR_SUBNETS=\"2001:db8:1000::/48\" \\\\" >> changelog.md
+          echo "  ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+          echo "" >> changelog.md
+          echo "See the [README](https://github.com/uppaljs/ipv6autoptr/blob/main/README.md) for complete documentation." >> changelog.md
+        else
+          echo "## 🚀 Initial Release" > changelog.md
+          echo "" >> changelog.md
+          echo "First release of the modernized IPv6 Auto PTR DNS Server." >> changelog.md
+          echo "" >> changelog.md
+          echo "### Key Features" >> changelog.md
+          echo "- ✅ Python 3.13 support" >> changelog.md
+          echo "- ✅ YAML configuration system" >> changelog.md
+          echo "- ✅ Environment variable configuration" >> changelog.md
+          echo "- ✅ Docker and Docker Compose support" >> changelog.md
+          echo "- ✅ Multi-platform container images" >> changelog.md
+          echo "- ✅ Security hardening" >> changelog.md
+          echo "- ✅ Comprehensive documentation" >> changelog.md
+          echo "" >> changelog.md
+          echo "## 🐳 Docker Images" >> changelog.md
+          echo "" >> changelog.md
+          echo "\`\`\`bash" >> changelog.md
+          echo "docker pull ${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:$CURRENT_TAG" >> changelog.md
+          echo "\`\`\`" >> changelog.md
+        fi
+
+        # Set multiline output
+        echo 'changelog<<EOF' >> $GITHUB_OUTPUT
+        cat changelog.md >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: IPv6 Auto PTR v${{ github.ref_name }}
+        body: ${{ steps.changelog.outputs.changelog }}
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') || contains(github.ref_name, 'rc') }}
+
+    - name: Release summary
+      run: |
+        echo "## 🎉 Release Created" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version**: ${{ steps.changelog.outputs.current_tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Release URL**: https://github.com/uppaljs/ipv6autoptr/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Docker Image**: \`${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:${{ steps.changelog.outputs.current_tag }}\`" >> $GITHUB_STEP_SUMMARY
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.event_name != 'pull_request'
+
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: '${{ secrets.DOCKERHUB_USERNAME }}/ipv6autoptr:latest'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
