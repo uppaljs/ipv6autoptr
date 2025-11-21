@@ -1,5 +1,4 @@
 # IPv6 Auto PTR DNS Server - Docker Compose Configuration
-version: '3.8'
 
 services:
   # Basic IPv6 PTR DNS Server
@@ -8,19 +7,19 @@ services:
     container_name: ipv6autoptr
     restart: unless-stopped
     ports:
-      - "5353:53/udp"  # Map container port 53 to host port 5353
-      - "5353:53/tcp"
+      - "5356:53/udp"  # Map container port 53 to host port 5356
+      - "5356:53/tcp"
     environment:
-      - IPV6AUTOPTR_PORT=53
-      - IPV6AUTOPTR_BIND_ADDRESS=::
-      - IPV6AUTOPTR_ENABLE_UDP=true
-      - IPV6AUTOPTR_ENABLE_TCP=true
-      - IPV6AUTOPTR_VERBOSE=2
-      - IPV6AUTOPTR_TTL=3600
-      - IPV6AUTOPTR_DOMAIN_SUFFIX=ip6.example.com.
-      - IPV6AUTOPTR_SUBNETS=2001:db8:1::/48,2001:db8:2::/64
-      - IPV6AUTOPTR_MAX_WORKERS=16
-      - IPV6AUTOPTR_LOG_LEVEL=INFO
+      IPV6AUTOPTR_PORT: "53"
+      IPV6AUTOPTR_BIND_ADDRESS: "::"
+      IPV6AUTOPTR_ENABLE_UDP: "true"
+      IPV6AUTOPTR_ENABLE_TCP: "true"
+      IPV6AUTOPTR_VERBOSE: "2"
+      IPV6AUTOPTR_TTL: "3600"
+      IPV6AUTOPTR_DOMAIN_SUFFIX: "ip6.example.com."
+      IPV6AUTOPTR_SUBNETS: "2001:db8:1::/48,2001:db8:2::/64"
+      IPV6AUTOPTR_MAX_WORKERS: "16"
+      IPV6AUTOPTR_LOG_LEVEL: "INFO"
     volumes:
       # Mount custom PTR records config
       - ./ipv6autoptr.conf:/app/ipv6autoptr.conf:ro
@@ -47,16 +46,16 @@ services:
       - "53:53/udp"
       - "53:53/tcp"
     environment:
-      - IPV6AUTOPTR_PORT=53
-      - IPV6AUTOPTR_BIND_ADDRESS=::
-      - IPV6AUTOPTR_ENABLE_UDP=true
-      - IPV6AUTOPTR_ENABLE_TCP=true
-      - IPV6AUTOPTR_VERBOSE=1
-      - IPV6AUTOPTR_TTL=86400
-      - IPV6AUTOPTR_DOMAIN_SUFFIX=ip6.yourdomain.com.
-      - IPV6AUTOPTR_SUBNETS=2001:db8::/32
-      - IPV6AUTOPTR_MAX_WORKERS=32
-      - IPV6AUTOPTR_LOG_LEVEL=WARNING
+      IPV6AUTOPTR_PORT: "53"
+      IPV6AUTOPTR_BIND_ADDRESS: "::"
+      IPV6AUTOPTR_ENABLE_UDP: "true"
+      IPV6AUTOPTR_ENABLE_TCP: "true"
+      IPV6AUTOPTR_VERBOSE: "1"
+      IPV6AUTOPTR_TTL: "86400"
+      IPV6AUTOPTR_DOMAIN_SUFFIX: "ip6.yourdomain.com."
+      IPV6AUTOPTR_SUBNETS: "2001:db8::/32"
+      IPV6AUTOPTR_MAX_WORKERS: "32"
+      IPV6AUTOPTR_LOG_LEVEL: "WARNING"
     volumes:
       - ./production.conf:/app/ipv6autoptr.conf:ro
       - ./logs:/app/logs

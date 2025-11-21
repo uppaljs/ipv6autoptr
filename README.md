@@ -463,7 +463,6 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ### Current Maintainer
 - **Junaid Saeed Uppal** - *Modernization, Docker support, configuration system* - [@uppaljs](https://github.com/uppaljs)
-  - Email: junaid.uppal@gmail.com
   - GitHub: [https://github.com/uppaljs/ipv6autoptr](https://github.com/uppaljs/ipv6autoptr)
 
 ### Key Enhancements in This Fork
@@ -482,7 +481,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 - **Bug Reports**: [GitHub Issues](https://github.com/uppaljs/ipv6autoptr/issues)
 - **Feature Requests**: [GitHub Discussions](https://github.com/uppaljs/ipv6autoptr/discussions)
-- **Security Issues**: Email junaid.uppal@gmail.com directly
+- **Security Issues**: [GitHub Issues](https://github.com/uppaljs/ipv6autoptr/issues)
 
 ## 🗺️ Roadmap
 
