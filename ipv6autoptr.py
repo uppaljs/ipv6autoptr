@@ -38,10 +38,10 @@ class DomainName(str):
 
 IPV6AUTOPTR_VERSION = "0.1"
 
-# Set up subnets for auto ipv6 ptr
-subnets = ['2a0a:XXXX::/48', '2a0a:XXXX:0:a000::/64']
+# Set up subnets for auto ipv6 ptr - TEST CONFIGURATION
+subnets = ['2001:db8:1::/48', '2001:db8:2::/64']
 
-D = DomainName('ip6.mydomain.net.')
+D = DomainName('ip6.testdomain.local.')
 #IP = '122.123.124.125'
 #IP6 = '2a0a:XXXX:0:a000::125'
 
@@ -109,13 +109,18 @@ def dns_response_ipv6ptr(data):
                     match = True
                          
                     # read config file to retrieve parameter-value pairs for PTR answer
-                    with open('/etc/ipv6autoptr.conf') as f:
+                    with open('ipv6autoptr.conf') as f:
                         lines = f.readlines()
                         # parse parameters from config file
                         config_params = {}
                         for line in lines:
-                            param, value = line.strip().split(' = ')
-                            config_params[param.strip()] = value.strip()
+                            line = line.strip()
+                            # Skip empty lines and comments
+                            if not line or line.startswith('#'):
+                                continue
+                            if ' = ' in line:
+                                param, value = line.split(' = ', 1)
+                                config_params[param.strip()] = value.strip()
 
                     # Check if the PTR domain name matches a config parameter and replace it with the corresponding value
                     for param, value in config_params.items():
@@ -250,11 +255,11 @@ def main():
 
 if __name__ == '__main__':
 
-    header  = "     ___ ______     ____     _   _   _ _____ ___  ____ _____ ____  \n"
-    header += "    |_ _|  _ \ \   / / /_   / \ | | | |_   _/ _ \|  _ \_   _|  _ \  \n"
-    header += "     | || |_) \ \ / / '_ \ / _ \| | | | | || | | | |_) || | | |_) | \n"
-    header += "     | ||  __/ \ V /| (_) / ___ \ |_| | | || |_| |  __/ | | |  _ < \n"
-    header += "    |___|_|     \_/  \___/_/   \_\___/  |_| \___/|_|    |_| |_| \_\ \n"
+    header  = r"     ___ ______     ____     _   _   _ _____ ___  ____ _____ ____  " + "\n"
+    header += r"    |_ _|  _ \ \   / / /_   / \ | | | |_   _/ _ \|  _ \_   _|  _ \  " + "\n"
+    header += r"     | || |_) \ \ / / '_ \ / _ \| | | | | || | | | |_) || | | |_) | " + "\n"
+    header += r"     | ||  __/ \ V /| (_) / ___ \ |_| | | || |_| |  __/ | | |  _ < " + "\n"
+    header += r"    |___|_|     \_/  \___/_/   \_\___/  |_| \___/|_|    |_| |_| \_\ " + "\n"
     header += "     powered by Dmitriy Terehin | https://github.com/meatlayer | v %s  \n" %IPV6AUTOPTR_VERSION
 
     print(header)
